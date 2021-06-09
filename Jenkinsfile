@@ -1,6 +1,8 @@
 pipeline {
   environment {
     dockerImage = ''
+    registry = "thongchaidocker/spring-jenkins-pipeline"
+    registryCredential = 'dockerhub'
   }
   tools {
     jdk "JAVA11"
@@ -32,6 +34,32 @@ pipeline {
                 }
             }
         }
+    }
+    stage("Quality Gate") {
+        steps {
+            waitForQualityGate abortPipeline: true
+        }
+    }
+    stage('Building image') {
+      steps{
+        script {
+          dockerImage = docker.build registry + ":$BUILD_NUMBER"
+        }
+      }
+    }
+    stage('Deploy Image') {
+      steps{
+         script {
+            docker.withRegistry( '', registryCredential ) {
+            dockerImage.push()
+          }
+        }
+      }
+    }
+    stage('Remove Unused docker image') {
+      steps{
+        sh "docker rmi $registry:$BUILD_NUMBER"
+      }
     }
     stage('Build2') {
       steps {
